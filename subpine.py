@@ -74,10 +74,8 @@ def main():
             if event.type == QUIT:
                 pygame.quit()
                 sys.exit()
-        if event.type == KEYDOWN and event.key == K_x:
-            return
-
-        currentime = datetime.datetime.time(datetime.datetime.now())
+            if event.type == KEYDOWN and event.key == K_x:
+                return
 
         # Draw the title
         black_square_that_is_the_size_of_the_screen = pygame.Surface(DISPLAYSURF.get_size())
