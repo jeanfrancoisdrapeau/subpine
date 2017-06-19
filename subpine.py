@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     # Set up the screen
 
-    DISPLAYSURF = pygame.display.set_mode((800, 480), 0, 16)
+    DISPLAYSURF = pygame.display.set_mode((1280, 720), 0, 16)
     pygame.mouse.set_visible(0)
     pygame.display.set_caption('SubPINE')
 
