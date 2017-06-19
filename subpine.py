@@ -9,10 +9,15 @@ protocol = "5"
 connection = None
 
 rpmString = "N/A"
+afrString = "N/A"
 
 def new_rpm(r):
     global rpmString
     rpmString = str(r.value.magnitude)
+
+def new_lambda(r):
+    global afrString
+    afrString = str(r.value.magnitude / 14.7)
 
 def connect(p, b, pr):
     global connection
@@ -21,6 +26,7 @@ def connect(p, b, pr):
     try:
         connection = obd.Async(p, b, pr)
         connection.watch(obd.commands.RPM, callback=new_rpm)
+        connection.watch(obd.commands.O2_S1_WR_VOLTAGE, callback=new_lambda)
         connection.start()
 
         s = "Connected"
@@ -61,7 +67,7 @@ if __name__ == "__main__":
             elif connection.status() == OBDStatus.NOT_CONNECTED:
                 status = connect(port, baud, protocol)
 
-        if (time.time() - lastDoConnect) > 2:
+        if (time.time() - lastDoConnect) > 5:
             doConnect = True
 
         for event in pygame.event.get():
@@ -76,25 +82,15 @@ if __name__ == "__main__":
         black_square_that_is_the_size_of_the_screen.fill((0, 0, 0))
         DISPLAYSURF.blit(black_square_that_is_the_size_of_the_screen, (0, 0))
 
+        # RPM
         font = pygame.font.Font(None, 60)
-        text = font.render("RPM: " + str(rpmString), 1, RED)
+        rpmText = font.render("RPM: " + str(rpmString), 1, RED)
+        DISPLAYSURF.blit(rpmText, (0, 0))
 
-        DISPLAYSURF.blit(text, (0, 0))
-
-        # textstring = "N/A"
-        # if connection is not None:
-        #     try:
-        #         obdvalue1 = connection.query(obd.commands.O2_S1_WR_VOLTAGE)
-        #         textstring = obdvalue1.value.magnitude / 14.7
-        #     except:
-        #         connection.close()
-        # font = pygame.font.Font(None, 60)
-        # text = font.render("AFR: " + str(textstring), 1, RED)
-        # DISPLAYSURF.blit(text, (0, 60))
-
-        # Draw Lines
-
-        # pygame.draw.line(DISPLAYSURF, GREEN, [5, 140], [DISPLAYSURF.get_width()-5, 140], 1)
+        # AFR
+        font = pygame.font.Font(None, 60)
+        afrText = font.render("AFR: " + str(afrString), 1, RED)
+        DISPLAYSURF.blit(afrText, (0, rpmText.get_height()))
 
         # Status
         font = pygame.font.Font(None, 40)
