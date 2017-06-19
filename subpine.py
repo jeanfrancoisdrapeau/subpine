@@ -43,8 +43,11 @@ def main():
     lastDoConnect = time.time()
 
     # Set up the screen
+    displayInfo = pygame.display.Info()
+    windowWidth = displayInfo.current_w
+    windowHeight = displayInfo.current_h
 
-    DISPLAYSURF = pygame.display.set_mode((1280, 720), 0, 16)
+    DISPLAYSURF = pygame.display.set_mode((windowWidth, windowHeight), 0, 16)
     pygame.mouse.set_visible(0)
     pygame.display.set_caption('SubPINE')
 
