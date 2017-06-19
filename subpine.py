@@ -35,7 +35,7 @@ def connect(p, b, pr):
 
     return s
 
-if __name__ == "__main__":
+def main():
     pygame.init()
     clock = pygame.time.Clock()
 
@@ -74,6 +74,8 @@ if __name__ == "__main__":
             if event.type == QUIT:
                 pygame.quit()
                 sys.exit()
+        if event.type == KEYDOWN and event.key == K_x:
+            return
 
         currentime = datetime.datetime.time(datetime.datetime.now())
 
@@ -111,3 +113,6 @@ if __name__ == "__main__":
     if connection is not None:
         connection.close()
     sys.exit()
+
+if __name__ == "__main__":
+    main()
