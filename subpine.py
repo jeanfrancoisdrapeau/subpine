@@ -1,4 +1,4 @@
-import pygame, sys, time, datetime, obd, math
+import pygame, sys, time, obd, math, pygame.gfxdraw
 from pygame.locals import *
 from obd import OBDStatus
 
@@ -10,23 +10,28 @@ protocol = "5"
 
 connection = None
 
-afrString = "N/A"
 lpkString = "N/A"
 
+# RPM
 curRpm = 0
 curMaxRpm = 0
 maxRpm = 7000.0
 redRpm = 6300.0
 
-curAfr = 0
+# AFR
+curAfr = 0.0
 maxAfr = 18.0
 redAfr = 16.0
 
+# LP100km
 sumLps = 0.0
-
 firstKm = True
 firstKmReading = 0.0
 lastKmReading = 0.0
+
+# Voltage
+curVolt = 0.0
+maxVolt = 15.0
 
 # set up the colors
 BLACK = (0, 0, 0)
@@ -35,6 +40,11 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 CYAN = (0, 255, 255)
+
+def new_volt(r):
+    global curVolt
+
+    curVolt = r.value.magnitude
 
 def new_rpm(r):
     global curRpm
@@ -79,6 +89,8 @@ def connect(p, b, pr):
         connection.watch(obd.commands.O2_S1_WR_VOLTAGE, callback=new_lambda)
         connection.watch(obd.commands.FUEL_RATE, callback=new_fuelrate)
         connection.watch(obd.commands.DISTANCE_SINCE_DTC_CLEAR, callback=new_distancetraveled)
+        connection.watch(obd.commands.ELM_VOLTAGE, callback=new_volt)
+
         connection.start()
 
         s = "Connected"
@@ -89,22 +101,45 @@ def connect(p, b, pr):
 
 def valueToRadians(cur, max):
     perc = cur / max
-    gauge_move = 270 * perc
+    gauge_move = (270 * perc) + 135
     return math.radians(gauge_move)
 
-def drawGauge(maxv, redv, curv, title, curm=None):
+def drawGauge(maxv, curv, title, redv=None, curm=None):
     surface = pygame.Surface((200, 200))
     surface.fill((0, 0, 0))
     surface.set_colorkey((0, 0, 0))
 
-    pygame.draw.arc(surface, WHITE, (0, 0, 200, 200), math.radians(0), valueToRadians(redv, maxv), 2)
-    pygame.draw.arc(surface, RED, (0, 0, 200, 200), valueToRadians(redv, maxv), math.radians(270), 2)
-    pygame.draw.arc(surface, GREEN, (0, 0, 200, 200), math.radians(0), valueToRadians(curv, maxv), 2)
+    # Circles
+    pygame.gfxdraw.aacircle(surface, 100, 100, 98, WHITE)
+    pygame.gfxdraw.aacircle(surface, 100, 100, 97, WHITE)
+    pygame.gfxdraw.aacircle(surface, 100, 100, 89, WHITE)
 
-    surface = pygame.transform.rotozoom(surface, -45, 1)
-    surface = pygame.transform.flip(surface, True, False)
+    # Bottom mask
+    pygame.gfxdraw.filled_polygon(surface, [(100, 100), (200, 200), (0, 200)], BLACK)
 
-    curcolor = RED if curv >= redv else WHITE
+    # Redline
+    if redv is not None:
+        x1 = 100 + math.cos(valueToRadians(redv, maxv)) * 80
+        y1 = 100 + math.sin(valueToRadians(redv, maxv)) * 80
+
+        x2 = 100 + math.cos(valueToRadians(redv, maxv)) * 100
+        y2 = 100 + math.sin(valueToRadians(redv, maxv)) * 100
+        pygame.draw.line(surface, RED, (x1, y1), (x2, y2), 2)
+
+    # Needle
+    x1 = 100 + math.cos(valueToRadians(curv, maxv)) * 80
+    y1 = 100 + math.sin(valueToRadians(curv, maxv)) * 80
+
+    x2 = 100 + math.cos(valueToRadians(curv, maxv)) * 100
+    y2 = 100 + math.sin(valueToRadians(curv, maxv)) * 100
+    pygame.draw.line(surface, GREEN, (x1, y1), (x2, y2), 2)
+
+    # Texts
+    curcolor = WHITE
+    if redv is not None:
+        if curv >= redv:
+            curcolor = RED
+
     largefont = pygame.font.Font(None, 60)
     largetext = largefont.render(str(curv), 1, curcolor)
     surface.blit(largetext, (surface.get_width() / 2 - largetext.get_width() / 2,
@@ -166,21 +201,19 @@ def main():
         curHeight = 0
 
         # RPM
-        DISPLAYSURF.blit(drawGauge(maxRpm, redRpm, curRpm, "RPM", curMaxRpm), (0, 0))
+        DISPLAYSURF.blit(drawGauge(maxRpm, curRpm, "RPM", redRpm, curMaxRpm), (0, 0))
 
         # AFR
-        DISPLAYSURF.blit(drawGauge(maxAfr, redAfr, curAfr, "AFR", None), (0, 200))
+        DISPLAYSURF.blit(drawGauge(maxAfr, curAfr, "AFR", redAfr, None), (0, 180))
 
-        font = pygame.font.Font(None, 60)
-        afrText = font.render("AFR: " + str(afrString), 1, RED)
-        DISPLAYSURF.blit(afrText, (0, curHeight))
-        curHeight += afrText.get_height()
+        # Volt
+        DISPLAYSURF.blit(drawGauge(maxVolt, curVolt, "Volt", None, None), (200, 0))
 
         # Fuel rate
-        font = pygame.font.Font(None, 60)
-        lpkText = font.render("L/100km: " + str(lpkString), 1, RED)
-        DISPLAYSURF.blit(lpkText, (0, curHeight))
-        curHeight += lpkText.get_height()
+        #font = pygame.font.Font(None, 60)
+        #lpkText = font.render("L/100km: " + str(lpkString), 1, RED)
+        #DISPLAYSURF.blit(lpkText, (0, curHeight))
+        #curHeight += lpkText.get_height()
 
         # Status
         font = pygame.font.Font(None, 40)
