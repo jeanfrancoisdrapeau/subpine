@@ -4,9 +4,7 @@ from obd import OBDStatus
 
 PI = 3.141592653
 
-supportedPidsA = []
-
-port = ""
+port = "/dev/tty.usbserial-00001014"  #MACOS
 baud = 115200
 protocol = "5"
 
@@ -17,8 +15,8 @@ lpkString = "N/A"
 # RPM
 curRpm = 0
 curMaxRpm = 0
-maxRpm = 7000.0
-redRpm = 6300.0
+maxRpm = 8000.0
+redRpm = 6500.0
 
 # AFR
 curAfr = 0.0
@@ -43,46 +41,48 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 CYAN = (0, 255, 255)
 
-def new_pidsa(r):
-    global supportedPidsA
-    supportedPidsA = r.value
-
 def new_volt(r):
     global curVolt
 
-    curVolt = r.value.magnitude
+    if r.value is not None:
+        curVolt = r.value.magnitude
 
 def new_rpm(r):
     global curRpm
     global curMaxRpm
 
-    curRpm = r.value.magnitude
-    if curRpm > curMaxRpm:
-        curMaxRpm = curRpm
+    if r.value is not None:
+        curRpm = r.value.magnitude
+        if curRpm > curMaxRpm:
+            curMaxRpm = curRpm
 
 def new_lambda(r):
     global curAfr
 
-    curAfr = r.value.magnitude / 14.7
+    if r.value is not None:
+        curAfr = r.value.magnitude / 14.7
 
 def new_distancetraveled(r):
     global firstKm
     global firstKmReading
     global lastKmReading
 
-    if firstKm:
-        firstKmReading = r.value.magnitude
-        firstKm = False
-    else:
-        lastKmReading = r.value.magnitude
+    if r.value is not None:
+        if firstKm:
+            firstKmReading = r.value.magnitude
+            firstKm = False
+        else:
+            lastKmReading = r.value.magnitude
 
 def new_fuelrate(r):
     global lpkString
     global sumLps
 
-    sumLps += r.value.magnitude / 3600  # (lph to lps)
-    deltakm = lastKmReading - firstKmReading
-    lpkString = str(sumLps / deltakm * 100)
+    if r.value is not None:
+        sumLps += r.value.magnitude / 3600  # (lph to lps)
+        deltakm = lastKmReading - firstKmReading
+        if deltakm > 0:
+            lpkString = str(sumLps / deltakm * 100)
 
 def connect(p, b, pr):
     global connection
@@ -90,13 +90,13 @@ def connect(p, b, pr):
     s = "Unknown"
 
     try:
+        connection = None
         connection = obd.Async(p, b, pr)
-        connection.watch(obd.commands.PIDS_A, callback=new_pidsa)
-        connection.watch(obd.commands.RPM, callback=new_rpm)
-        connection.watch(obd.commands.O2_S1_WR_VOLTAGE, callback=new_lambda)
-        connection.watch(obd.commands.FUEL_RATE, callback=new_fuelrate)
-        connection.watch(obd.commands.DISTANCE_SINCE_DTC_CLEAR, callback=new_distancetraveled)
-        connection.watch(obd.commands.ELM_VOLTAGE, callback=new_volt)
+        connection.watch(obd.commands.RPM, callback=new_rpm, force=True)
+        connection.watch(obd.commands.O2_S1_WR_VOLTAGE, callback=new_lambda, force=True)
+        connection.watch(obd.commands.FUEL_RATE, callback=new_fuelrate, force=True)
+        connection.watch(obd.commands.DISTANCE_SINCE_DTC_CLEAR, callback=new_distancetraveled, force=True)
+        connection.watch(obd.commands.ELM_VOLTAGE, callback=new_volt, force=True)
 
         connection.start()
 
@@ -164,6 +164,8 @@ def drawGauge(maxv, curv, title, redv=None, curm=None):
     return surface
 
 def main():
+    obd.logger.setLevel(obd.logging.DEBUG)
+
     pygame.init()
     clock = pygame.time.Clock()
 
@@ -181,16 +183,17 @@ def main():
 
     # Main loop
     while True:
-        status = "Not connected"
         if doConnect:
+            status = "Not connected"
             doConnect = False
             lastDoConnect = time.time()
+
             if connection is None:
                 status = connect(port, baud, protocol)
             elif connection.status() == OBDStatus.NOT_CONNECTED:
                 status = connect(port, baud, protocol)
 
-        if (time.time() - lastDoConnect) > 5:
+        if (time.time() - lastDoConnect) > 5 and status == "Not connected":
             doConnect = True
 
         for event in pygame.event.get():
@@ -198,6 +201,8 @@ def main():
                 pygame.quit()
                 sys.exit()
             if event.type == KEYDOWN and event.key == K_x:
+                if connection is not None:
+                    connection.close()
                 return
 
         # Draw the title
@@ -208,10 +213,10 @@ def main():
         curHeight = 0
 
         # RPM
-        DISPLAYSURF.blit(drawGauge(maxRpm, curRpm, "RPM", redRpm, curMaxRpm), (0, 0))
+        DISPLAYSURF.blit(drawGauge(maxRpm, int(curRpm), "RPM", redRpm, curMaxRpm), (0, 0))
 
         # AFR
-        DISPLAYSURF.blit(drawGauge(maxAfr, curAfr, "AFR", redAfr, None), (0, 180))
+        DISPLAYSURF.blit(drawGauge(maxAfr, round(curAfr,1), "AFR", redAfr, None), (0, 180))
 
         # Volt
         DISPLAYSURF.blit(drawGauge(maxVolt, curVolt, "Volt", None, None), (200, 0))
