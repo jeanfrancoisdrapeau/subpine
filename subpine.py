@@ -1,10 +1,14 @@
 import pygame, sys, time, obd, math, pygame.gfxdraw
 from pygame.locals import *
 from obd import OBDStatus
+from sys import platform
 
 PI = 3.141592653
 
-port = "/dev/tty.usbserial-00001014"  #MACOS
+port = ""
+if platform == "darwin":
+    port = "/dev/tty.usbserial-00001014"  # MACOS
+
 baud = 115200
 protocol = "5"
 
@@ -60,7 +64,7 @@ def new_lambda(r):
     global curAfr
 
     if r.value is not None:
-        curAfr = r.value.magnitude / 14.7
+        curAfr = r.value.magnitude   # r.value.magnitude / 14.7
 
 def new_distancetraveled(r):
     global firstKm
