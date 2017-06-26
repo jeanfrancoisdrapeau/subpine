@@ -4,6 +4,8 @@ from obd import OBDStatus
 
 PI = 3.141592653
 
+supportedPidsA = []
+
 port = ""
 baud = 115200
 protocol = "5"
@@ -40,6 +42,10 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 CYAN = (0, 255, 255)
+
+def new_pidsa(r):
+    global supportedPidsA
+    supportedPidsA = r.value
 
 def new_volt(r):
     global curVolt
@@ -85,6 +91,7 @@ def connect(p, b, pr):
 
     try:
         connection = obd.Async(p, b, pr)
+        connection.watch(obd.commands.PIDS_A, callback=new_pidsa)
         connection.watch(obd.commands.RPM, callback=new_rpm)
         connection.watch(obd.commands.O2_S1_WR_VOLTAGE, callback=new_lambda)
         connection.watch(obd.commands.FUEL_RATE, callback=new_fuelrate)
